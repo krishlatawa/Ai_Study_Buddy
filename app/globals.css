@@ -1,26 +1,136 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0B0F14;
+  --foreground: #F8FAFC;
+  --bg: #0B0F14;
+  --surface: #131A22;
+  --accent-primary: #39FF88;
+  --accent-secondary: #7B5CFF;
+  --accent-alert: #FF3D71;
+  --accent-info: #00E5FF;
+  --xp-green: var(--accent-primary);
+  --combo-purple: var(--accent-secondary);
+  --streak-pink: var(--accent-alert);
+  --focus-cyan: var(--accent-info);
+  --theme-font-display: var(--font-space-grotesk), sans-serif;
+  --theme-font-body: var(--font-inter), sans-serif;
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-xp-green: var(--xp-green);
+  --color-combo-purple: var(--combo-purple);
+  --color-streak-pink: var(--streak-pink);
+  --color-focus-cyan: var(--focus-cyan);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--theme-font-body);
+  --font-display: var(--theme-font-display);
+  --font-mono: var(--font-jetbrains-mono), monospace;
+  
+  --shadow-xp-green: 0 0 15px rgba(57, 255, 136, 0.4);
+  --shadow-combo-purple: 0 0 15px rgba(123, 92, 255, 0.4);
+  --shadow-focus-cyan: 0 0 15px rgba(0, 229, 255, 0.4);
+  --shadow-streak-pink: 0 0 15px rgba(255, 61, 113, 0.4);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--bg);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--theme-font-body);
+}
+
+/* Custom CSS utilities for Esports HUD styling */
+.text-glow-green {
+  text-shadow: 0 0 8px rgba(57, 255, 136, 0.6);
+}
+.text-glow-purple {
+  text-shadow: 0 0 8px rgba(123, 92, 255, 0.6);
+}
+.text-glow-cyan {
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+}
+.text-glow-pink {
+  text-shadow: 0 0 8px rgba(255, 61, 113, 0.6);
+}
+
+/* Animations */
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0.9);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-10px) scale(1.1);
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(-45px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-55px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-float-xp {
+  animation: floatUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
+  }
+}
+
+.animate-pulse-cyan {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* Hide scrollbar for clean HUD */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom styled scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0F14;
+}
+::-webkit-scrollbar-thumb {
+  background: #1F2937;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7B5CFF;
+}
+
+/* Confetti animations */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(200px) rotate(360deg);
+    opacity: 0;
+  }
+}
+.animate-confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  animation: confettiFall 1.5s ease-out forwards;
 }
