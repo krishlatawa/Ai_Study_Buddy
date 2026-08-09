@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id         Int              @id @default(autoincrement())
+  email           String           @unique
+  Name            String
+  passwordHash    String
+  createdAt       DateTime         @default(now())
+  xp              Int              @default(0)
+  level           Int              @default(1)
+  streak          Int              @default(0)
+  lastTaskDate    DateTime?
+  todos           Todo[]
+  activityLogs    ActivityLog[]
+  quizzes         Quiz[]
+  quizAttempts    QuizAttempt[]
+  feynmanSessions FeynmanSession[]
+  weakSpots       WeakSpot[]
+}
+
+model Todo {
+  id              Int      @id @default(autoincrement())
+  title           String
+  difficulty      String   @default("Easy")
+  completed       Boolean  @default(false)
+  isRewardClaimed Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          Int
+  user            User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+
+  @@unique([userId, title])
+  @@index([userId, createdAt])
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  date      DateTime
+  type      String   @default("task")
+  minutes   Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+
+  @@unique([userId, date, type])
+  @@index([userId, date])
+}
+
+// Add this enum
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+model Quiz {
+  id        String        @id @default(cuid())
+  title     String
+  notes     String        @db.Text
+  user_id   Int
+  user      User          @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  questions Question[]
+  attempts  QuizAttempt[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([user_id, createdAt])
+}
+
+model Question {
+  id        String       @id @default(cuid())
+  quizId    String
+  quiz      Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type      QuestionType
+  question  String       @db.Text
+  options   Json?
+  answer    Json?
+  order     Int
+  createdAt DateTime     @default(now())
+
+  @@unique([quizId, order])
+  @@index([quizId, order])
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  quizId         String
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user_id        Int // Changed from String to Int
+  user           User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  score          Int
+  totalQuestions Int
+  answers        Json // [{questionId, selectedAnswer, isCorrect}]
+  timeTaken      Int? // seconds
+  completedAt    DateTime @default(now())
+
+  @@index([quizId, user_id])
+}
+
+// --- Feynman Technique Models ---
+
+model FeynmanSession {
+  id                   String            @id @default(cuid())
+  user_id              Int
+  user                 User              @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  topic                String            @db.Text
+  sourceNotes          String?           @db.Text
+  status               String            @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED
+  xpEarned             Int               @default(0)
+  // --- New fields for structured Q&A ---
+  questionBank         Json? // Pre-generated [{id, question, expectedAnswer, explanation}]
+  currentQuestionIndex Int               @default(0)
+  score                Int               @default(0)
+  totalQuestions       Int               @default(0)
+  // ---
+  exchanges            FeynmanExchange[]
+  weakSpots            WeakSpot[]
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@unique([user_id, topic])
+  @@index([user_id, createdAt])
+}
+
+model FeynmanExchange {
+  id          String         @id @default(cuid())
+  sessionId   String
+  session     FeynmanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String // "ai" | "student"
+  message     String         @db.Text
+  order       Int
+  // --- New: track which question this relates to and if answer was correct ---
+  questionRef Int? // index into questionBank
+  isCorrect   Boolean? // null for AI messages, true/false for student answers
+  // ---
+  createdAt   DateTime       @default(now())
+}
+
+model WeakSpot {
+  id          String          @id @default(cuid())
+  user_id     Int
+  user        User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  topic       String          @db.Text
+  description String          @db.Text
+  source      String          @default("FEYNMAN") // FEYNMAN | QUIZ | MANUAL
+  sessionId   String?
+  session     FeynmanSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  strength    Int             @default(1) // 1-5 (1=very weak, 5=mastered)
+  reviewedAt  DateTime?
+  createdAt   DateTime        @default(now())
+}
