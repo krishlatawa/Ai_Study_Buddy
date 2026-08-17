@@ -27,7 +27,9 @@ export default function FeynmanSessionPage() {
     }
   }, [sessionId]);
 
-  useEffect(() => { fetchSession(); }, [fetchSession]);
+  useEffect(() => {
+    void Promise.resolve().then(fetchSession);
+  }, [fetchSession]);
 
   useEffect(() => {
     if (messagesEndRef.current) {

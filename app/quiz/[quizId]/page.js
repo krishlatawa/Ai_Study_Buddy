@@ -15,7 +15,7 @@ export default function TakeQuizPage() {
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
-  const [startTime] = useState(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   const fetchQuiz = useCallback(async () => {
     try {
@@ -39,7 +39,7 @@ export default function TakeQuizPage() {
   }, [quizId]);
 
   useEffect(() => {
-    fetchQuiz();
+    void Promise.resolve().then(fetchQuiz);
   }, [fetchQuiz]);
 
   const handleAnswer = (questionId, answer) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import PropTypes from "prop-types";
 
 function formatDayLabel(date) {
@@ -6,23 +6,15 @@ function formatDayLabel(date) {
 }
 
 export default function StreakSidebar({ profile }) {
-  const [lastSevenDays, setLastSevenDays] = useState([]);
-
-  // Build the date-based data only on the client after hydration
-  // to avoid hydration mismatch between server and client Date.now()
-  useEffect(() => {
+  const lastSevenDays = useMemo(() => {
     const now = new Date();
     const activity = new Set((profile?.recentActivity || []).map((entry) => new Date(entry.date).toDateString()));
-    const days = Array.from({ length: 7 }, (_, index) => {
+    return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(now);
       day.setDate(now.getDate() - (6 - index));
       return { key: day.toDateString(), label: formatDayLabel(day), active: activity.has(day.toDateString()) };
     });
-    setLastSevenDays(days);
   }, [profile?.recentActivity]);
-
-  // Render a neutral placeholder on the server (before hydration)
-  const isHydrated = lastSevenDays.length > 0;
 
   return (
     <aside className="rounded-2xl border border-[color:var(--surface)] bg-[color:var(--surface)]/90 p-6 shadow-[0_0_30px_rgba(0,0,0,0.25)]">

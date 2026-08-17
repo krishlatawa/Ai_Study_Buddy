@@ -9,20 +9,24 @@ export default function QuizList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchQuizzes();
-  }, []);
+    let isCurrent = true;
 
-  const fetchQuizzes = async () => {
-    try {
-      const res = await fetch('/api/quiz');
-      const data = await res.json();
-      if (data.quizzes) setQuizzes(data.quizzes);
-    } catch (err) {
-      console.error('Failed to fetch quizzes:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetch('/api/quiz')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isCurrent && data.quizzes) setQuizzes(data.quizzes);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch quizzes:', err);
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) {
     return (

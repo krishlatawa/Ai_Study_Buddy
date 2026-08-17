@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import PropTypes from "prop-types";
 
 const THEME_STORAGE_KEY = "ai-study-buddy-theme";
@@ -58,19 +58,28 @@ const ThemeContext = createContext({
   setTheme: () => {},
 });
 
-export function ThemeProvider({ children }) {
-  // Start with default theme on server to avoid hydration mismatch.
-  // localStorage is only safe to read after the client hydrates.
-  const [theme, setTheme] = useState(DEFAULT_THEME);
+function getStoredTheme() {
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  return savedTheme && themeTokens[savedTheme] ? savedTheme : DEFAULT_THEME;
+}
 
-  // After hydration, read the saved theme from localStorage and apply it.
-  useEffect(() => {
-    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (savedTheme && themeTokens[savedTheme]) {
-      setTheme(savedTheme);
-    } else {
-      window.localStorage.setItem(THEME_STORAGE_KEY, DEFAULT_THEME);
-    }
+function subscribeToTheme(callback) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("ai-study-buddy-theme-change", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("ai-study-buddy-theme-change", callback);
+  };
+}
+
+export function ThemeProvider({ children }) {
+  const theme = useSyncExternalStore(subscribeToTheme, getStoredTheme, () => DEFAULT_THEME);
+
+  const setTheme = useCallback((nextTheme) => {
+    if (!themeTokens[nextTheme]) return;
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    window.dispatchEvent(new Event("ai-study-buddy-theme-change"));
   }, []);
 
   // Apply theme CSS variables whenever the theme changes.
@@ -95,10 +104,9 @@ export function ThemeProvider({ children }) {
     root.style.setProperty("--theme-font-display", tokens.fontFamily);
     root.style.setProperty("--theme-font-body", tokens.bodyFont);
 
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

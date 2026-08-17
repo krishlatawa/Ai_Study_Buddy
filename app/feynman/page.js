@@ -17,31 +17,41 @@ export default function FeynmanHubPage() {
   const [loadingSessions, setLoadingSessions] = useState(true);
 
   useEffect(() => {
-    fetchPastSessions();
-    fetchWeakSpots();
+    let isCurrent = true;
+
+    fetch('/api/feynman/sessions')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isCurrent && data.success) setPastSessions(data.sessions);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch sessions:', err);
+      })
+      .finally(() => {
+        if (isCurrent) setLoadingSessions(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
-  const fetchPastSessions = async () => {
-    try {
-      const res = await fetch('/api/feynman/sessions');
-      const data = await res.json();
-      if (data.success) setPastSessions(data.sessions);
-    } catch (err) {
-      console.error('Failed to fetch sessions:', err);
-    } finally {
-      setLoadingSessions(false);
-    }
-  };
+  useEffect(() => {
+    let isCurrent = true;
 
-  const fetchWeakSpots = async () => {
-    try {
-      const res = await fetch('/api/feynman/weakspots');
-      const data = await res.json();
-      if (data.success) setWeakSpots(data.weakSpots);
-    } catch (err) {
-      console.error('Failed to fetch weak spots:', err);
-    }
-  };
+    fetch('/api/feynman/weakspots')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isCurrent && data.success) setWeakSpots(data.weakSpots);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch weak spots:', err);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const startSession = async () => {
     if (!topic.trim() || topic.trim().length < 3) {
