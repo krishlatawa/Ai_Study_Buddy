@@ -11,6 +11,12 @@ jobs:
     name: Lint and Build
     runs-on: ubuntu-latest
 
+    # Job-level environment variables for all steps
+    env:
+      DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+      NEXTAUTH_SECRET: "dummy_secret_key_for_ci_build_12345"
+      NEXTAUTH_URL: "http://localhost:3000"
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -31,8 +37,4 @@ jobs:
         run: npm run lint
 
       - name: Build production app
-        env:
-          NEXTAUTH_SECRET: dummy_secret_key_for_ci_build_12345
-          NEXTAUTH_URL: http://localhost:3000
-          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
         run: npm run build
