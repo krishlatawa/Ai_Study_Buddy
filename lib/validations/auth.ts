@@ -26,9 +26,9 @@ export const signupSchema = z.object({
   username: z
     .string()
     .min(1, 'Username is required')
-    .min(3, 'Username must be at least 3 characters')
-    .max(30, 'Username must be less than 30 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+    .min(2, 'Username must be at least 2 characters')
+    .max(50, 'Username must be less than 50 characters')
+    .regex(/^[a-zA-Z0-9_ -]+$/, 'Username can only contain letters, numbers, spaces, underscores, and hyphens'),
 });
 
 // Export types for TypeScript inference

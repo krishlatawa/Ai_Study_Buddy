@@ -36,82 +36,79 @@ import { Redis } from "@upstash/redis";
 // "Singleton" means we only instantiate it ONCE and reuse it across all
 // imports, rather than creating a new connection per request.
 // ---------------------------------------------------------------------------
-let redis: Redis;
+const hasUpstash = Boolean(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+);
 
-function getRedis(): Redis {
+let redis: Redis | null = null;
+
+function getRedis(): Redis | null {
+  if (!hasUpstash) return null;
   if (!redis) {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    // If env vars are missing, return a dummy Redis instance that won't be
-    // used for actual rate limiting (the fallback limiter never calls it).
-    if (!url || !token) {
-      // @ts-ignore - dummy client for fallback path
-      redis = {};
-      return redis as unknown as Redis;
-    }
-
-    redis = new Redis({ url, token });
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
   }
   return redis;
 }
 
-// ---------------------------------------------------------------------------
-// Create a singleton Ratelimit instance.
-//
-// Configuration:
-//   - slidingWindow(10, "10 s"): allows up to 10 requests per 10-second
-//     sliding window per unique identifier (e.g., per IP address).
-//   - Sliding window means the window "slides" with each request — it's
-//     more accurate than a fixed window (which can burst at boundaries).
-//   - ephemeralCache: Optionally cache results in-memory for a short time
-//     to reduce Redis calls. Set to 0 to always check Redis.
-// ---------------------------------------------------------------------------
-let ratelimit: Ratelimit;
+const noopLimiter = {
+  limit: async (_id: string) => ({
+    success: true,
+    limit: 1000,
+    remaining: 999,
+    reset: Date.now() + 10000,
+    pending: Promise.resolve(),
+  }),
+};
 
-export function getRatelimit(): Ratelimit {
+let ratelimit: { limit: (id: string) => Promise<{ success: boolean; limit: number; remaining: number; reset: number }> };
+
+export function getRatelimit() {
   if (!ratelimit) {
-    // Graceful fallback: if Upstash env vars aren't set, create a no-op
-    // limiter that allows all requests. This prevents the app from crashing
-    // during development or when Upstash isn't configured yet.
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-      console.warn(
-        "[Upstash] UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not set. " +
-        "Rate limiting is DISABLED. Set these in .env for production."
-      );
-      ratelimit = new Ratelimit({
-        redis: getRedis(),
-        limiter: Ratelimit.slidingWindow(99999, "1 m"), // effectively unlimited
-        analytics: false,
-        prefix: "ratelimit",
-      });
+    if (!hasUpstash) {
+      ratelimit = noopLimiter;
+      return ratelimit;
+    }
+
+    const r = getRedis();
+    if (!r) {
+      ratelimit = noopLimiter;
       return ratelimit;
     }
 
     ratelimit = new Ratelimit({
-      redis: getRedis(),
+      redis: r,
       limiter: Ratelimit.slidingWindow(10, "10 s"),
-      analytics: true, // Tracks rate limit events in Upstash dashboard
-      prefix: "ratelimit", // Prefix for Redis keys: "ratelimit:<identifier>"
+      analytics: true,
+      prefix: "ratelimit",
     });
   }
   return ratelimit;
 }
 
-// ---------------------------------------------------------------------------
-// Convenience: Pre-configured limiters for different sensitivities
-// ---------------------------------------------------------------------------
-export const strict = () => new Ratelimit({
-  redis: getRedis(),
-  limiter: Ratelimit.slidingWindow(5, "60 s"),   // 5 req/min
-  prefix: "ratelimit_strict",
-});
+export const strict = () => {
+  if (!hasUpstash) return noopLimiter;
+  const r = getRedis();
+  if (!r) return noopLimiter;
+  return new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(5, "60 s"),
+    prefix: "ratelimit_strict",
+  });
+};
 
-export const defaultLimit = () => new Ratelimit({
-  redis: getRedis(),
-  limiter: Ratelimit.slidingWindow(20, "60 s"),  // 20 req/min
-  prefix: "ratelimit_default",
-});
+export const defaultLimit = () => {
+  if (!hasUpstash) return noopLimiter;
+  const r = getRedis();
+  if (!r) return noopLimiter;
+  return new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(20, "60 s"),
+    prefix: "ratelimit_default",
+  });
+};
 
 // ---------------------------------------------------------------------------
 // Helper: Extract a safe identifier from a Next.js request.
